@@ -28,6 +28,10 @@ export default function Questions({
  // Single effect to handle fetching when params are valid and questions are needed
 const [quizResults, setQuizResults] = useState(null); // State to hold results after submission
 const [isNewQuizCooldown, setIsNewQuizCooldown] = useState(false); // State for button cooldown
+const [shouldScrollToTop, setShouldScrollToTop] = useState(false); // State to trigger scroll after load
+const questionsHeadingRef = useRef(null); // Ref for the heading element
+
+ // Effect to fetch data when parameters change or questions are empty
  useEffect(() => {
      // Condition to fetch: category and difficulty must be set, and questions must be empty
      const shouldFetch = quizParams.category && quizParams.difficulty && (!quizData.questions || quizData.questions.length === 0);
@@ -125,15 +129,27 @@ const [isNewQuizCooldown, setIsNewQuizCooldown] = useState(false); // State for 
             console.log("Effect cleanup: Aborting fetch controller.");
             controller.abort();
         };
-    }, [quizParams.category, quizParams.difficulty, quizData.questions.length, setQuizData]); // Depend on the conditions checked
+    }, [quizParams.category, quizParams.difficulty, quizData.questions?.length, setQuizData]); // Depend on the conditions checked, use optional chaining
 
+    // Effect to scroll to top after new questions load
+    useEffect(() => {
+        console.log("Scroll-up effect triggered. Questions Length:", quizData.questions?.length, "ShouldScroll:", shouldScrollToTop); // Log entry point based on questions
+        // Only scroll if new questions have loaded AND we explicitly requested a scroll
+        if (quizData.questions?.length > 0 && shouldScrollToTop && questionsHeadingRef.current) { // Check ref explicitly and questions length
+            console.log("Conditions met (new questions loaded). Scrolling to:", questionsHeadingRef.current); // Log before scroll
+            questionsHeadingRef.current.scrollIntoView({ behavior: 'smooth' });
+            setShouldScrollToTop(false); // Reset the flag after scrolling
+        } else if (quizData.questions?.length > 0 && shouldScrollToTop && !questionsHeadingRef.current) {
+            console.warn("Scroll conditions met (new questions loaded), but questionsHeadingRef.current is not available yet."); // Log if ref is missing
+        }
+    }, [quizData.questions, shouldScrollToTop, setShouldScrollToTop]); // Run when questions data or the scroll flag changes
     
     // do not submit if any answer does not have a selection
 
 console.log("Rendering Questions component. State:", { loading, error, quizData });
     return (
         <div>
-            <h3>Quiz Questions</h3>
+            <h3 ref={questionsHeadingRef}>Quiz Questions</h3>
             {loading && <p>Loading...</p>}
             {error && (
                 <p>
@@ -218,6 +234,7 @@ console.log("Rendering Questions component. State:", { loading, error, quizData 
                         possibleAnswers: [],
                         userAnswers: []
                     });
+                    setShouldScrollToTop(true); // Signal that we need to scroll once loading finishes
 
                     // End cooldown after 5 seconds
                     setTimeout(() => {
